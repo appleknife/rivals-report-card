@@ -1,0 +1,42 @@
+name: Release
+
+# Push a tag like v1.4.0 to build the Windows app and publish it as a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check tag matches package version
+        shell: bash
+        run: |
+          node -e "const p=require('./package.json'); const t=process.env.GITHUB_REF_NAME.replace(/^v/,''); if(p.version!==t){console.error('Tag '+t+' does not match package.json '+p.version); process.exit(1);}"
+      - run: npm test
+      - run: npm run package-win
+      - name: Zip the app
+        shell: pwsh
+        run: Compress-Archive -Path "dist/Rivals Report Card-win32-x64" -DestinationPath "dist/Rivals-Report-Card-Windows.zip"
+      - name: Write checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "dist/Rivals-Report-Card-Windows.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  Rivals-Report-Card-Windows.zip" | Set-Content "dist/Rivals-Report-Card-Windows.zip.sha256"
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/Rivals-Report-Card-Windows.zip" "dist/Rivals-Report-Card-Windows.zip.sha256" \
+            --title "Rivals Report Card $GITHUB_REF_NAME" \
+            --notes "Download Rivals-Report-Card-Windows.zip, unzip it and run Rivals Report Card.exe. The .sha256 file is there if you want to verify the download. See CHANGELOG.md for what's new."

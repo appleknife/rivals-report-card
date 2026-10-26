@@ -1,0 +1,45 @@
+{
+  "name": "rivals-report-card",
+  "productName": "Rivals Report Card",
+  "version": "1.5.0",
+  "description": "Grade your Marvel Rivals squad from a scoreboard screenshot and roast the feeders. Unofficial fan project.",
+  "main": "src/main.js",
+  "private": true,
+  "homepage": "https://github.com/appleknife/rivals-report-card",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/appleknife/rivals-report-card.git"
+  },
+  "bugs": {
+    "url": "https://github.com/appleknife/rivals-report-card/issues"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "package-win": "electron-packager . \"Rivals Report Card\" --platform=win32 --arch=x64 --out=dist --overwrite --no-asar --ignore=\"^/(dist|test|docs|scripts|assets|build|web|\\.github)(/|$)\" --ignore=\"^/\\.git\" --ignore=\"^/(README|CHANGELOG)\\.md$\" --ignore=\"^/(\\.gitignore|\\.gitattributes|package-lock\\.json)$\" --ignore=\"@tesseract\\.js-data/eng/4\\.0\\.0/\" --icon=build/icon.ico --app-copyright=\"Copyright (c) 2026 Don. Fonts: Anton (SIL OFL 1.1)\"",
+    "screenshots": "electron scripts/screenshots.js",
+    "icon": "electron scripts/render-icon.js"
+  },
+  "keywords": [
+    "marvel-rivals",
+    "electron",
+    "ocr",
+    "scoreboard",
+    "fan-project"
+  ],
+  "author": "Don",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
+    "pngjs": "7.0.0",
+    "tesseract.js": "7.0.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.0.0",
+    "jsdom": "^30.1.3"
+  }
+}

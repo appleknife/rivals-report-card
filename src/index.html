@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="description" content="Grade your Marvel Rivals squad from a scoreboard screenshot and roast the feeders. Unofficial fan project, offline and private.">
+<meta name="theme-color" content="#07080d">
+<meta name="color-scheme" content="dark">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Rivals Report Card</title>
+<style>
+  @font-face {
+    font-family: 'Anton'; font-style: normal; font-weight: 400; font-display: swap;
+    src: url('fonts/anton-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Anton'; font-style: normal; font-weight: 400; font-display: swap;
+    src: url('fonts/anton-latin-ext-400-normal.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  :root {
+    --display: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
+    --bg: #07080d;
+    --panel: #10131c;
+    --panel2: #161a26;
+    --line: #262c3d;
+    --text: #e6e9f2;
+    --muted: #8a93ab;
+    --accent: #ffcc00;
+    --accent2: #ff2e63;
+    --cyan: #00e5ff;
+    --tank: #4da3ff;
+    --dps: #ff4d6d;
+    --support: #3ddc97;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(255,46,99,0.12), transparent 40%),
+      radial-gradient(circle at 80% 100%, rgba(0,229,255,0.10), transparent 40%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(2.4rem, 7vw, 4.2rem);
+    line-height: 1.05;
+    margin: 0;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 400;
+    font-style: italic;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 12px rgba(255,46,99,0.4));
+  }
+  .sub { color: var(--muted); letter-spacing: 3px; text-transform: uppercase; font-size: 0.8rem; margin-top: 6px; }
+
+  .panel {
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--cyan));
+  }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .panel h2 {
+    font-family: var(--display); font-weight: 400;
+    margin: 0; font-size: 1.2rem; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--accent);
+  }
+
+  /* Screenshot import */
+  .drop {
+    display: flex; align-items: center; gap: 18px;
+    border: 2px dashed #34405c;
+    border-radius: 10px;
+    padding: 16px 18px;
+    background: rgba(0,229,255,0.03);
+    transition: border-color .15s, background .15s;
+  }
+  .drop.over { border-color: var(--cyan); background: rgba(0,229,255,0.09); }
+  .drop.busy { border-color: var(--accent); }
+  .drop-icon { font-size: 2.2rem; line-height: 1; }
+  .drop-text { flex: 1; min-width: 0; }
+  .drop-title { font-weight: 800; letter-spacing: 1px; }
+  .drop-title kbd {
+    background: #1d2333; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 6px; font-family: inherit; font-size: 0.85em;
+  }
+  .drop-status { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+  .drop-status.ok { color: var(--support); }
+  .drop-status.warn { color: var(--accent); }
+  .drop-status.err { color: var(--accent2); }
+  .drop img { height: 64px; border-radius: 4px; border: 1px solid var(--line); display: none; }
+  .spinner {
+    display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px;
+    border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .grid-head, .player-row {
+    display: grid;
+    grid-template-columns: 26px 1.35fr 1.15fr 0.95fr repeat(3, 0.5fr) repeat(3, 0.8fr);
+    gap: 7px;
+    align-items: center;
+  }
+  .grid-head {
+    font-size: 0.68rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1.3px; padding: 0 4px 8px; border-bottom: 1px solid var(--line);
+  }
+  .player-row { padding: 7px 4px; border-bottom: 1px solid rgba(38,44,61,0.5); }
+  .slot { color: var(--accent); font-weight: 900; font-style: italic; text-align: center; }
+  input, select {
+    width: 100%;
+    background: #0a0c13;
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(0,229,255,0.15); }
+  input.check, select.check { border-color: var(--accent); background: rgba(255,204,0,0.10); }
+  .minutes { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; }
+  .minutes input { width: 70px; text-align: center; }
+  .hint { color: var(--muted); font-size: 0.78rem; margin-top: 10px; text-align: center; }
+  .hint b { color: var(--accent); font-weight: 600; }
+
+  .buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
+  button {
+    border: none; cursor: pointer; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; padding: 12px 22px; border-radius: 6px;
+    font-size: 0.85rem; font-family: inherit; transition: transform .1s, filter .15s;
+  }
+  button:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  button:active { transform: translateY(1px); }
+  .btn-main {
+    background: linear-gradient(90deg, var(--accent2), #ff7a18);
+    color: #fff; font-size: 1rem; padding: 14px 34px;
+    box-shadow: 0 0 20px rgba(255,46,99,0.45);
+    clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  }
+  .btn-alt { background: #1d2333; color: var(--text); border: 1px solid var(--line); }
+  .btn-small { padding: 9px 14px; font-size: 0.75rem; }
+  .error { color: var(--accent2); text-align: center; margin-top: 10px; min-height: 1.2em; font-weight: 600; }
+
+  #results { display: none; }
+  .results-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .results-tools .tool-status { color: var(--muted); font-size: 0.8rem; min-width: 1px; }
+  .results-tools .tool-status.ok { color: var(--support); }
+  .results-tools .tool-status.err { color: var(--accent2); }
+  #results.capturing .results-tools { visibility: hidden; }
+
+  .awards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+  .award { border-radius: 10px; padding: 18px; text-align: center; border: 1px solid var(--line); background: var(--panel); }
+  .award.mvp { border-color: var(--accent); box-shadow: 0 0 25px rgba(255,204,0,0.18) inset, 0 0 18px rgba(255,204,0,0.15); }
+  .award.walk { border-color: var(--accent2); box-shadow: 0 0 25px rgba(255,46,99,0.15) inset, 0 0 18px rgba(255,46,99,0.15); }
+  .award .icon { font-size: 2rem; }
+  .award .title { font-size: 0.75rem; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); margin: 4px 0 2px; }
+  .award .name { font-family: var(--display); font-weight: 400; font-size: 2.1rem; line-height: 1.15; font-style: italic; overflow-wrap: anywhere; }
+  .award.mvp .name { color: var(--accent); }
+  .award.walk .name { color: var(--accent2); }
+  .award .why { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+
+  .team-grade {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin: 4px 0 18px; color: var(--muted); font-size: 0.9rem;
+  }
+  .team-grade .stamp-grade { font-size: 3rem; }
+
+  /* Player cards */
+  .card {
+    --role: var(--muted);
+    position: relative;
+    display: grid;
+    grid-template-columns: 112px 1fr 250px;
+    gap: 18px;
+    align-items: stretch;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    opacity: 0;
+    animation: cardIn .3s ease-out both;
+    animation-delay: calc(var(--d) - 0.12s);
+  }
+  .card.tank { --role: var(--tank); }
+  .card.dps { --role: var(--dps); }
+  .card.support { --role: var(--support); }
+  .card.is-mvp { border-color: var(--accent); box-shadow: 0 0 22px rgba(255,204,0,0.18); }
+  @keyframes cardIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Grade badge: halftone panel with a slanted edge, like the in-game UI */
+  .grade-cell {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 14px 10px 12px 4px;
+    background:
+      radial-gradient(circle, color-mix(in srgb, var(--role) 55%, transparent) 1.3px, transparent 1.7px) 0 0 / 7px 7px,
+      linear-gradient(100deg, color-mix(in srgb, var(--role) 30%, transparent), color-mix(in srgb, var(--role) 6%, transparent));
+    clip-path: polygon(0 0, 100% 0, 84% 100%, 0 100%);
+  }
+  .grade-cell::after {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -66px;
+    border-radius: 50%; border: 3px solid var(--role); opacity: 0; pointer-events: none;
+    animation: burst .45s ease-out both; animation-delay: calc(var(--d) + 0.22s);
+  }
+  .stamp-grade {
+    display: inline-block;
+    font-family: var(--display); font-weight: 400; font-size: 3.6rem; line-height: 1;
+    font-style: italic;
+    text-shadow: 3px 3px 0 #000, 0 0 18px currentColor;
+    transform: rotate(-6deg);
+    animation: stamp .5s cubic-bezier(.2, .9, .3, 1.25) both;
+    animation-delay: var(--d);
+  }
+  @keyframes stamp {
+    0%   { opacity: 0; transform: scale(2.8) rotate(-18deg); }
+    55%  { opacity: 1; transform: scale(0.9) rotate(-4deg); }
+    78%  { transform: scale(1.06) rotate(-7deg); }
+    100% { opacity: 1; transform: scale(1) rotate(-6deg); }
+  }
+  @keyframes burst { 0% { opacity: 0.85; transform: scale(0.35); } 100% { opacity: 0; transform: scale(1.35); } }
+  .g-a { color: #ffd23f; }
+  .g-b { color: #3ddc97; }
+  .g-c { color: #4da3ff; }
+  .g-d { color: #ff9f1c; }
+  .g-f { color: #ff2e63; }
+  .score-num { font-size: 0.72rem; color: #cfd5e6; margin-top: 8px; padding: 1px 7px; border-radius: 3px; background: rgba(7, 8, 13, 0.82); }
+
+  .who { padding: 14px 0; min-width: 0; }
+  .pname { font-family: var(--display); font-weight: 400; font-size: 1.55rem; line-height: 1.1; letter-spacing: 0.3px; overflow-wrap: anywhere; }
+  .pname .badge {
+    display: inline-block; font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 0.62rem; padding: 2px 7px; border-radius: 3px;
+    margin-left: 8px; vertical-align: 5px; letter-spacing: 1.2px; font-weight: 800;
+    text-transform: uppercase; color: #000; background: var(--role);
+  }
+  .hero { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .roast { margin-top: 8px; font-style: italic; color: #cfd5e6; line-height: 1.45; max-width: 62ch; }
+  .roast::before { content: "\201C"; color: var(--accent); font-weight: 900; }
+  .roast::after { content: "\201D"; color: var(--accent); font-weight: 900; }
+
+  /* Stat bars vs. role average */
+  .bars { display: grid; align-content: center; gap: 7px; padding: 14px 16px 14px 0; }
+  .kda { font-size: 0.78rem; color: var(--muted); margin-bottom: 2px; }
+  .kda b { color: var(--text); }
+  .bar-row { display: grid; grid-template-columns: 58px 1fr 54px; align-items: center; gap: 8px; font-size: 0.74rem; color: var(--muted); }
+  .bar-row b { color: var(--text); font-weight: 600; text-align: right; }
+  .track { position: relative; height: 8px; background: #1c2133; border-radius: 2px; }
+  .track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: #cfd5e6; opacity: 0.5; }
+  .fill { height: 100%; width: var(--w); background: var(--role); border-radius: 2px; animation: grow .6s ease-out both; animation-delay: calc(var(--d) + 0.15s); }
+  /* Deaths are the one stat where more is worse, so they get their own striped look in every role */
+  .fill.deaths { background: repeating-linear-gradient(135deg, #d9dde8 0 3px, #7d859c 3px 6px); }
+  @keyframes grow { from { width: 0; } to { width: var(--w); } }
+  .bars-note { color: var(--muted); font-size: 0.75rem; text-align: center; margin-top: 4px; }
+
+  /* Extra controls */
+  .squad-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .mini-field { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.2px; }
+  .mini-field select { width: auto; min-width: 118px; padding: 6px 8px; text-transform: none; letter-spacing: 0; }
+  .mini-note { color: var(--muted); font-size: 0.76rem; }
+  .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.76rem; letter-spacing: 0.4px; cursor: pointer; user-select: none; }
+  .toggle input { width: 15px; height: 15px; accent-color: var(--cyan); }
+  .rank-note { color: var(--muted); font-size: 0.76rem; text-align: center; margin: -4px 0 14px; }
+  .rank-note b { color: var(--text); }
+
+  /* Why this grade? */
+  .card .why { margin-top: 10px; border-top: 1px solid rgba(38,44,61,0.7); padding-top: 8px; }
+  .card .why summary { color: var(--cyan); cursor: pointer; font-size: 0.76rem; letter-spacing: 0.8px; text-transform: uppercase; width: fit-content; }
+  .card .why summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .card .why-grid { margin-top: 7px; display: grid; gap: 4px; font-size: 0.72rem; color: var(--muted); }
+  .card .why-row { display: grid; grid-template-columns: 70px 1fr 42px 48px; gap: 8px; align-items: baseline; }
+  .card .why-row b { color: var(--text); font-weight: 600; text-align: right; }
+  .card .why-row .why-pts { color: var(--accent); text-align: right; }
+  .card .why-note { margin-top: 4px; font-size: 0.68rem; color: var(--muted); }
+
+  /* Share footer and site footer */
+  .share-footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 0.68rem; letter-spacing: 0.4px; }
+  .share-footer b { color: var(--accent); font-weight: 700; }
+  .site-footer { max-width: 1180px; margin: 8px auto 0; color: var(--muted); font-size: 0.74rem; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 4px; }
+  .site-footer a { color: var(--cyan); text-decoration: none; }
+  .site-footer a:hover { text-decoration: underline; }
+
+  /* Stale results after editing inputs */
+  .stale-note { display: none; margin: 0 0 14px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 5px; color: var(--accent); background: rgba(255,204,0,0.08); font-size: 0.8rem; text-align: center; }
+  #results.stale .stale-note { display: block; }
+  #results.stale #cards, #results.stale #awards, #results.stale #teamGrade { opacity: 0.55; }
+
+  /* Screen-reader-only text */
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  /* Hide names only while capturing */
+  .pname-mask, .award-name-mask { display: none; }
+  #results.capturing.hide-names .pname-real, #results.capturing.hide-names .award-name-real { display: none; }
+  #results.capturing.hide-names .pname-mask, #results.capturing.hide-names .award-name-mask { display: inline; }
+
+  /* Capture without waiting for entrance animations */
+  #results.capturing { width: 1180px; max-width: none; }
+  #results.capturing .card, #results.capturing .stamp-grade, #results.capturing .fill { animation: none !important; }
+  #results.capturing .card { opacity: 1 !important; }
+  #results.capturing .stamp-grade { transform: rotate(-6deg) !important; }
+  #results.capturing .fill { width: var(--w) !important; }
+  #results.capturing .grade-cell::after { display: none !important; }
+
+  button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--cyan); outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .stamp-grade, .fill, .grade-cell::after { animation: none !important; }
+    .card { opacity: 1; }
+    .grade-cell::after { display: none; }
+  }
+
+  @media (max-width: 900px) {
+    .grid-head { display: none; }
+    .player-row {
+      grid-template-columns: 1fr 1fr 1fr;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+    .slot { grid-column: 1 / -1; text-align: left; }
+    .awards { grid-template-columns: 1fr; }
+    .card { grid-template-columns: 92px 1fr; gap: 14px; }
+    .bars { grid-column: 1 / -1; padding: 0 16px 14px; }
+    .who { padding-right: 14px; }
+    .stamp-grade { font-size: 3rem; }
+    .drop img { display: none !important; }
+    input, select { font-size: 16px; }
+    .card .why-row { grid-template-columns: 62px 1fr 38px 44px; }
+    .share-footer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Rivals Report Card</h1>
+    <div class="sub">Post-Match Performance Review &bull; No Excuses Accepted</div>
+    <div class="mini-note" style="margin-top:8px">Unofficial fan project &bull; screenshots stay on your PC</div>
+  </header>
+
+  <div class="panel">
+    <div class="panel-head"><h2>&#9656; Import Scoreboard</h2></div>
+    <div class="drop" id="drop">
+      <div class="drop-icon" aria-hidden="true">📸</div>
+      <div class="drop-text">
+        <div class="drop-title">Press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a scoreboard screenshot, or drop the image here</div>
+        <div class="drop-status" id="importStatus" role="status" aria-live="polite">Screenshot the end-of-match scoreboard (Print Screen or Win+Shift+S), then paste it here.</div>
+      </div>
+      <img id="preview" alt="Selected scoreboard screenshot">
+      <button class="btn-alt btn-small" id="pasteBtn" hidden>Paste image</button>
+      <button class="btn-alt btn-small" id="browseBtn">Browse…</button>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>&#9656; Your Squad</h2>
+      <div class="squad-controls">
+        <label class="mini-field">Rank
+          <select id="rank" aria-label="Rank used for the report card">
+            <option value="all">All ranks</option>
+            <option value="bronze">Bronze</option>
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+            <option value="platinum">Platinum</option>
+            <option value="diamond">Diamond</option>
+            <option value="grandmaster">Grandmaster</option>
+            <option value="celestial">Celestial</option>
+            <option value="eternity">Eternity</option>
+            <option value="one-above-all">One Above All</option>
+          </select>
+        </label>
+        <label class="minutes">Match length <input id="minutes" type="text" inputmode="decimal" value="10"> min</label>
+      </div>
+    </div>
+    <div class="rank-note" id="rankNote" hidden></div>
+    <div class="grid-head">
+      <div>#</div><div>Name</div><div>Hero</div><div>Role</div>
+      <div>K</div><div>D</div><div>A</div><div>Damage</div><div>Dmg Blocked</div><div>Healing</div>
+    </div>
+    <div id="rows"></div>
+    <div class="hint">Tip: you can type <b>11.2k</b> instead of 11200. Yellow boxes are numbers the screenshot reader wasn't sure about. Missing stats stop the grade — enter <b>0</b> if a stat really was zero. Grades compare per-10-minute rates to the average for that role: an average game is a <b>B-</b>. Data: <a href="https://www.counterwatch.gg/stats/marvel-rivals" target="_blank" rel="noopener">Counterwatch</a> all-rank role averages, Oct 26 2026.</div>
+    <div class="buttons">
+      <button class="btn-main" id="gradeBtn">Grade Team</button>
+      <button class="btn-alt" id="sampleBtn">Load Sample Match</button>
+      <button class="btn-alt" id="clearBtn">Clear</button>
+    </div>
+    <div class="error" id="error" role="alert" aria-live="assertive"></div>
+  </div>
+
+  <div class="panel" id="results">
+    <div class="panel-head">
+      <h2 id="resultsTitle" tabindex="-1">&#9656; Match Results</h2>
+      <div class="results-tools" id="resultsTools" hidden>
+        <label class="toggle"><input type="checkbox" id="niceMode"> Nice mode</label>
+        <label class="toggle"><input type="checkbox" id="hideNames"> Hide names in image</label>
+        <span class="tool-status" id="toolStatus" role="status" aria-live="polite"></span>
+        <button class="btn-alt btn-small" id="copyImgBtn">Copy image</button>
+        <button class="btn-alt btn-small" id="saveImgBtn">Save image</button>
+      </div>
+    </div>
+    <div class="stale-note" id="staleNote">Stats changed. Grade the team again to refresh this report card.</div>
+    <div class="awards" id="awards"></div>
+    <div class="team-grade" id="teamGrade"></div>
+    <div id="cards"></div>
+    <div class="bars-note">Bars compare each stat to the average for that role. The tick mark is average. Longer death bars are worse.</div>
+    <div class="share-footer">
+      <span><b>Rivals Report Card</b> &bull; unofficial fan project</span>
+      <span>Not affiliated with NetEase Games or Marvel &bull; github.com/appleknife/rivals-report-card</span>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <span>Unofficial fan project. Not affiliated with NetEase Games or Marvel. Keep it friendly: roast the play, not the player.</span>
+  <span>v<span id="appVersion">1.5.0</span> &bull; <a href="https://github.com/appleknife/rivals-report-card" target="_blank" rel="noopener">GitHub</a></span>
+</footer>
+
+<datalist id="heroList"></datalist>
+
+<script src="roasts.js"></script>
+<script>
+(function () {
+  const MAX = 6;
+  const FIELDS = ['name', 'hero', 'role', 'kills', 'deaths', 'assists', 'damage', 'blocked', 'healing'];
+  const rowsEl = document.getElementById('rows');
+  const $ = id => document.getElementById(id);
+
+  // Hero -> role, used to fill in the role when you pick a hero by hand.
+  // Roster refreshed for Season 10.5 (includes the newest heroes and Deadpool's roles).
+  const HEROES = {
+    tank: ['Angela', 'Captain America', 'Devil Dinosaur', 'Doctor Strange', 'Emma Frost', 'Groot', 'Hulk', 'Magneto', 'Peni Parker', 'Rogue', 'The Hood', 'The Thing', 'Thor', 'Venom', 'Deadpool (Vanguard)'],
+    dps: ['Black Cat', 'Black Panther', 'Black Widow', 'Blade', 'Cyclops', 'Daredevil', 'Elsa Bloodstone', 'Gorr The God Butcher', 'Hawkeye', 'Hela', 'Human Torch', 'Iron Fist', 'Iron Man', 'Magik', 'Mister Fantastic', 'Moon Knight', 'Namor', 'Phoenix', 'Psylocke', 'Scarlet Witch', 'Spider-Man', 'Squirrel Girl', 'Star-Lord', 'Storm', 'The Punisher', 'Winter Soldier', 'Wolverine', 'Deadpool (Duelist)'],
+    support: ['Adam Warlock', 'Cloak & Dagger', 'Gambit', 'Invisible Woman', 'Jeff the Land Shark', 'Loki', 'Luna Snow', 'Mantis', 'Rocket Raccoon', 'Ultron', 'Deadpool (Strategist)']
+  };
+  const HERO_ROLE = {};
+  const allHeroes = ['Deadpool'];
+  for (const [role, list] of Object.entries(HEROES)) for (const h of list) { HERO_ROLE[h.toLowerCase()] = role; allHeroes.push(h); }
+  // Build the datalist with DOM nodes so unusual hero names can't break the markup.
+  for (const h of allHeroes.sort()) { const o = document.createElement('option'); o.value = h; $('heroList').appendChild(o); }
+
+  const RANK_LABELS = {
+    all: 'All ranks', bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum',
+    diamond: 'Diamond', grandmaster: 'Grandmaster', celestial: 'Celestial', eternity: 'Eternity',
+    'one-above-all': 'One Above All'
+  };
+  const prefs = { rank: 'all', nice: false, hideNames: false };
+  try { Object.assign(prefs, JSON.parse(localStorage.getItem('rrc-prefs') || '{}') || {}); } catch (e) {}
+  if (!RANK_LABELS[prefs.rank]) prefs.rank = 'all';
+  $('rank').value = prefs.rank;
+  $('niceMode').checked = !!prefs.nice;
+  $('hideNames').checked = !!prefs.hideNames;
+  function savePrefs() {
+    prefs.rank = $('rank').value;
+    prefs.nice = $('niceMode').checked;
+    prefs.hideNames = $('hideNames').checked;
+    try { localStorage.setItem('rrc-prefs', JSON.stringify(prefs)); } catch (e) {}
+  }
+  function updateRankNote() {
+    const note = $('rankNote');
+    if (prefs.rank === 'all') { note.hidden = true; note.textContent = ''; return; }
+    note.hidden = false;
+    note.textContent = `Report card for ${RANK_LABELS[prefs.rank]}. Per-rank stat baselines are still being collected, so grades currently use the all-rank average.`;
+  }
+
+  // ---------- Build input rows ----------
+  for (let i = 0; i < MAX; i++) {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    row.innerHTML = `
+      <div class="slot">${i + 1}</div>
+      <input data-f="name" aria-label="Player ${i + 1} name" placeholder="Player name" maxlength="24" autocomplete="off" spellcheck="false">
+      <input data-f="hero" aria-label="Player ${i + 1} hero" placeholder="Hero" maxlength="24" list="heroList" autocomplete="off" spellcheck="false">
+      <select data-f="role" aria-label="Player ${i + 1} role">
+        <option value="">Role…</option>
+        <option value="tank">Tank</option>
+        <option value="dps">DPS</option>
+        <option value="support">Support</option>
+      </select>
+      <input data-f="kills" type="text" inputmode="numeric" aria-label="Player ${i + 1} kills" placeholder="K">
+      <input data-f="deaths" type="text" inputmode="numeric" aria-label="Player ${i + 1} deaths" placeholder="D">
+      <input data-f="assists" type="text" inputmode="numeric" aria-label="Player ${i + 1} assists" placeholder="A">
+      <input data-f="damage" type="text" inputmode="numeric" aria-label="Player ${i + 1} damage" placeholder="Dealt">
+      <input data-f="blocked" type="text" inputmode="numeric" aria-label="Player ${i + 1} damage blocked" placeholder="Blocked">
+      <input data-f="healing" type="text" inputmode="numeric" aria-label="Player ${i + 1} healing" placeholder="Heal">
+    `;
+    rowsEl.appendChild(row);
+    const heroEl = row.querySelector('[data-f="hero"]'), roleEl = row.querySelector('[data-f="role"]');
+    heroEl.addEventListener('change', () => {
+      const r = HERO_ROLE[heroEl.value.trim().toLowerCase()];
+      if (r && !roleEl.value) roleEl.value = r;
+    });
+    const nameEl = row.querySelector('[data-f="name"]');
+    nameEl.addEventListener('change', () => {
+      const known = roster[nameEl.value.trim().toLowerCase()];
+      if (known && !heroEl.value) heroEl.value = known.hero || '';
+      if (known && !roleEl.value) roleEl.value = known.role || '';
+    });
+  }
+  // Editing a highlighted box means you've checked it
+  rowsEl.addEventListener('input', e => { e.target.classList.remove('check'); markDirty(); });
+  rowsEl.addEventListener('change', e => { e.target.classList.remove('check'); markDirty(); });
+  $('minutes').addEventListener('input', markDirty);
+  $('minutes').addEventListener('change', markDirty);
+  $('rank').addEventListener('change', () => { savePrefs(); updateRankNote(); markDirty(); if ($('results').style.display === 'block') grade(); });
+  $('niceMode').addEventListener('change', () => { savePrefs(); if ($('results').style.display === 'block') grade(); });
+  $('hideNames').addEventListener('change', savePrefs);
+  updateRankNote();
+
+  // Enter moves to the next box
+  rowsEl.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const all = [...rowsEl.querySelectorAll('input, select')];
+    const i = all.indexOf(e.target);
+    if (i >= 0 && i < all.length - 1) { e.preventDefault(); all[i + 1].focus(); if (all[i + 1].select) all[i + 1].select(); }
+  });
+
+  // ---------- Helpers ----------
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  // Returns null for a blank or invalid value, and 0 for an explicit zero.
+  const num = v => {
+    let s = String(v == null ? '' : v).trim().toLowerCase().replace(/[\s,]/g, '');
+    if (!s) return null;
+    let mult = 1;
+    if (s.endsWith('k')) { mult = 1000; s = s.slice(0, -1); }
+    else if (s.endsWith('m')) { mult = 1000000; s = s.slice(0, -1); }
+    if (!/^\d+(\.\d+)?$/.test(s)) return null;
+    const n = parseFloat(s) * mult;
+    return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+  };
+  const fmt = n => n == null ? '—' : Math.round(n).toLocaleString();
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const field = (row, f) => row.querySelector(`[data-f="${f}"]`);
+  function markDirty() {
+    if ($('results').style.display === 'block') $('results').classList.add('stale');
+  }
+
+  // ---------- Remembered friends (name -> last hero & role) ----------
+  let roster = {};
+  try { roster = JSON.parse(localStorage.getItem('rrc-roster') || '{}') || {}; } catch (e) { roster = {}; }
+  function saveRoster(players) {
+    for (const p of players) {
+      const k = p.name.toLowerCase(), old = roster[k] || {};
+      roster[k] = { name: p.name, hero: p.heroRaw || old.hero || '', role: p.role };
+    }
+    try { localStorage.setItem('rrc-roster', JSON.stringify(roster)); } catch (e) {}
+  }
+  function editDistance(a, b) {
+    a = a.toLowerCase(); b = b.toLowerCase();
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  // Snap a slightly-misread name to a friend you've graded before
+  function matchKnown(name) {
+    if (!name) return null;
+    if (roster[name.toLowerCase()]) return roster[name.toLowerCase()];
+    let best = null, bestD = 99;
+    for (const k of Object.values(roster)) {
+      const d = editDistance(name, k.name);
+      if (d < bestD) { bestD = d; best = k; }
+    }
+    return best && bestD <= Math.max(1, Math.floor(best.name.length * 0.2)) && bestD <= 3 ? best : null;
+  }
+
+  function readPlayers() {
+    const players = [];
+    rowsEl.querySelectorAll('.player-row').forEach(row => {
+      const get = f => field(row, f).value.trim();
+      const name = get('name');
+      if (!name) return;
+      players.push({
+        name,
+        heroRaw: get('hero'),
+        hero: get('hero') || 'Mystery Hero',
+        role: get('role'),
+        kills: num(get('kills')),
+        deaths: num(get('deaths')),
+        assists: num(get('assists')),
+        damage: num(get('damage')),
+        blocked: num(get('blocked')),
+        healing: num(get('healing'))
+      });
+    });
+    return players;
+  }
+
+  // ---------- Scoring ----------
+  // Role averages per 10 minutes, all ranks (community-tracked match stats, Oct 2026).
+  // "Blocked" = the scoreboard's Damage Blocked (stat sites call it mitigation).
+  const ROLE_AVG = {
+    tank:    { kills: 16.6, deaths: 6.5, assists: 5.0,  damage: 12900, blocked: 25500, healing: 0 },
+    dps:     { kills: 18.4, deaths: 7.5, assists: 2.8,  damage: 13600, blocked: 0,     healing: 0 },
+    support: { kills: 13.0, deaths: 5.9, assists: 20.2, damage: 6500,  blocked: 0,     healing: 18500 }
+  };
+  // How much each stat matters for each role (weights add up to 100)
+  const WEIGHTS = {
+    tank:    { blocked: 40, deaths: 25, kills: 15, damage: 20 },
+    dps:     { kills: 35, damage: 35, deaths: 30 },
+    support: { healing: 50, deaths: 20, assists: 15, damage: 10, kills: 5 }
+  };
+  const STAT_LABELS = { kills: 'Kills', deaths: 'Deaths', assists: 'Assists', damage: 'Damage', blocked: 'Blocked', healing: 'Healing' };
+  // A stat must have a value before we grade; blank is not the same as zero.
+  const REQUIRED_STATS = {
+    tank: ['kills', 'deaths', 'damage', 'blocked'],
+    dps: ['kills', 'deaths', 'damage'],
+    support: ['kills', 'deaths', 'assists', 'damage', 'healing']
+  };
+  // Stat compared to the role average: exactly average = 0.70, 40% above average = 1.00 (max 1.15)
+  const goodStat = r => clamp(0.7 + 0.75 * (r - 1), 0, 1.15);
+  // Deaths: average = 0.70, half the average = 1.00, double the average = 0.10 (can go negative)
+  const deathStat = r => clamp(0.7 - 0.6 * (r - 1), -0.3, 1.1);
+
+  // An exactly average player for their role scores 70 (B-); elite play hits 95-100.
+  function scorePlayer(p, minutes) {
+    const f = 10 / minutes; // convert to per-10-minute rates
+    const avg = ROLE_AVG[p.role], w = WEIGHTS[p.role];
+    let s = 0;
+    p.breakdown = [];
+    for (const [stat, weight] of Object.entries(w)) {
+      const rate = (p[stat] || 0) * f;
+      const r = rate / avg[stat];
+      const factor = stat === 'deaths' ? deathStat(r) : goodStat(r);
+      const points = weight * factor;
+      s += points;
+      p.breakdown.push({ stat, label: STAT_LABELS[stat], rate, average: avg[stat], ratio: r, factor, weight, points });
+    }
+    return clamp(Math.round(s), 0, 100);
+  }
+
+  function letter(score) {
+    const t = [[95,'A+'],[88,'A'],[82,'A-'],[77,'B+'],[72,'B'],[67,'B-'],
+               [62,'C+'],[56,'C'],[50,'C-'],[45,'D+'],[40,'D'],[35,'D-']];
+    for (const [min, g] of t) if (score >= min) return g;
+    return 'F';
+  }
+  const gradeClass = g => 'g-' + g[0].toLowerCase();
+
+  // ---------- Roasts & compliments (lines live in roasts.js) ----------
+  const ROASTS = window.ROASTS || {};
+  const AWARD_LINES = window.AWARD_LINES || { mvp: ['{hero} • Grade {grade} • Score {score}/100'], walker: ['{d} deaths on {hero}. GPS not included.'] };
+
+  // Shuffle-bag rotation: every line in a pool gets used once before any repeats,
+  // and it's remembered between matches.
+  let bags = {};
+  try { bags = JSON.parse(localStorage.getItem('rrc-bags') || '{}') || {}; } catch (e) { bags = {}; }
+  function draw(key, pool) {
+    if (!pool || !pool.length) return '';
+    let bag = bags[key];
+    // How many of the most recent lines stay out of a fresh shuffle (so a reshuffle can't repeat them right away)
+    const keepOut = Math.min(8, Math.floor(pool.length / 3));
+    if (!bag || !bag.left || !bag.left.length || bag.size !== pool.length) {
+      const recent = (bag && bag.size === pool.length && bag.recent) ? bag.recent.slice(-keepOut) : [];
+      bag = { size: pool.length, recent, left: pool.map((_, i) => i).filter(i => !recent.includes(i)) };
+      if (!bag.left.length) bag.left = pool.map((_, i) => i);
+    }
+    const idx = bag.left.splice(Math.floor(Math.random() * bag.left.length), 1)[0];
+    bag.recent = [...(bag.recent || []), idx].slice(-keepOut || -1);
+    bags[key] = bag;
+    try { localStorage.setItem('rrc-bags', JSON.stringify(bags)); } catch (e) {}
+    return pool[idx];
+  }
+  function fill(line, p, extra = {}) {
+    const vals = {
+      name: p.name, hero: p.hero, k: p.kills, d: p.deaths, a: p.assists,
+      dmg: fmt(p.damage), blk: fmt(p.blocked), heal: fmt(p.healing),
+      d_s: p.deaths === 1 ? '' : 's', ...extra
+    };
+    return line.replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m));
+  }
+
+  function lineCategory(p, score, minutes) {
+    const f = 10 / minutes;
+    const k = p.kills * f, d = p.deaths * f, dmg = p.damage * f, blk = p.blocked * f, heal = p.healing * f;
+    const tier = score >= 77 ? 'great' : score >= 50 ? 'mid' : 'bad';
+    let special = null;
+    // Thresholds are per 10 minutes, relative to the role averages in ROLE_AVG
+    if (p.role === 'tank') {
+      if (blk < 6000 && d < 4) return 'coward';                    // under 1/4 of the average tank's blocking
+      if (d <= 1 && score >= 67) special = 'immortal';
+    } else if (p.role === 'dps') {
+      if (d >= 11 && k < 20) return 'feeder';                       // ~1.5x the average DPS deaths
+      if (k >= 21 && d >= 9) special = 'glass';                     // well above average kills AND deaths
+      else if (dmg < 6000 && d <= 3) special = 'pacifist';          // under half the average DPS damage
+    } else {
+      if (heal < 6000) return 'noheal';                             // about 1/3 of the average support's healing
+      if (k >= 17 && heal >= 15000) special = 'battlemedic';        // ~30% more kills than an average support
+      else if (d <= 1 && heal >= 12000) special = 'immortal';
+    }
+    // Situational lines show up often, but not always, so there's more variety
+    return special && Math.random() < 0.6 ? special : tier;
+  }
+
+  function getLine(p, score, minutes) {
+    const pools = ROASTS[p.role] || {};
+    let cat = lineCategory(p, score, minutes);
+    // Nice mode keeps the jokes but avoids the harshest situational pools.
+    if (prefs.nice && ['bad', 'feeder', 'coward', 'noheal', 'pacifist'].includes(cat)) cat = 'mid';
+    if (!pools[cat] || !pools[cat].length) cat = score >= 77 ? 'great' : score >= 50 ? 'mid' : 'bad';
+    return fill(draw(p.role + '.' + cat, pools[cat]) || 'No comment.', p);
+  }
+
+  // ---------- Grade ----------
+  function grade() {
+    const err = $('error');
+    err.textContent = '';
+    const players = readPlayers();
+    if (players.length === 0) { err.textContent = 'Enter at least one player. Even a solo queue victim counts.'; return; }
+    const missing = players.find(p => !p.role);
+    if (missing) { err.textContent = `Pick a role for ${missing.name}. "Vibes" is not a role.`; return; }
+    const blank = [];
+    for (const p of players) for (const stat of REQUIRED_STATS[p.role]) if (p[stat] === null) blank.push({ p, stat });
+    if (blank.length) {
+      const first = blank[0];
+      err.textContent = `Enter a number for ${first.p.name}'s ${STAT_LABELS[first.stat]} (use 0 if it really was zero).`;
+      const row = [...rowsEl.querySelectorAll('.player-row')].find(r => field(r, 'name').value.trim() === first.p.name);
+      if (row) { const el = field(row, first.stat); el.classList.add('check'); el.focus(); }
+      return;
+    }
+    const minutes = clamp(parseFloat($('minutes').value) || 10, 3, 40);
+
+    // Optional stats can stay blank; they display as zero but were never weighted.
+    for (const p of players) for (const stat of ['kills', 'deaths', 'assists', 'damage', 'blocked', 'healing']) if (p[stat] === null) p[stat] = 0;
+
+    players.forEach(p => {
+      p.score = scorePlayer(p, minutes);
+      p.grade = letter(p.score);
+      p.line = getLine(p, p.score, minutes);
+      p.rank = prefs.rank;
+    });
+    saveRoster(players);
+
+    const mvp = [...players].sort((a, b) => b.score - a.score || b.kills - a.kills)[0];
+    const walker = [...players].sort((a, b) => b.deaths - a.deaths || a.score - b.score)[0];
+
+    const walkTitle = prefs.nice ? 'Most Likely to Take the Scenic Route' : 'Most Likely to Walk Into the Enemy Team';
+    let walkHTML;
+    if (walker.deaths === 0) {
+      walkHTML = `<div class="award walk"><div class="icon" aria-hidden="true">🚶</div>
+        <div class="title">${walkTitle}</div>
+        <div class="name">Nobody?!</div>
+        <div class="why">Zero deaths across the board. Suspicious. Were you even playing?</div></div>`;
+    } else {
+      walkHTML = `<div class="award walk"><div class="icon" aria-hidden="true">🚶</div>
+        <div class="title">${walkTitle}</div>
+        <div class="name"><span class="award-name-real">${esc(walker.name)}</span><span class="award-name-mask">Player ${players.indexOf(walker) + 1}</span></div>
+        <div class="why">${esc(fill(draw('award.walker', AWARD_LINES.walker), walker))}</div></div>`;
+    }
+    $('awards').innerHTML = `
+      <div class="award mvp"><div class="icon" aria-hidden="true">👑</div>
+        <div class="title">Match MVP</div>
+        <div class="name"><span class="award-name-real">${esc(mvp.name)}</span><span class="award-name-mask">Player ${players.indexOf(mvp) + 1}</span></div>
+        <div class="why">${esc(fill(draw('award.mvp', AWARD_LINES.mvp), mvp, { grade: mvp.grade, score: mvp.score }))}</div>
+      </div>${walkHTML}`;
+
+    const ordered = [...players].sort((a, b) => b.score - a.score);
+    const STEP = 0.16, START = 0.15;  // stagger for the grade stamps
+
+    const avg = Math.round(players.reduce((s, p) => s + p.score, 0) / players.length);
+    const teamLetter = letter(avg);
+    const rankLabel = prefs.rank === 'all' ? 'All ranks' : RANK_LABELS[prefs.rank];
+    $('teamGrade').innerHTML = `<span>Team average</span><b class="stamp-grade ${gradeClass(teamLetter)}" style="--d:${(START + ordered.length * STEP + 0.15).toFixed(2)}s">${teamLetter}</b><span>${avg}/100</span><span class="mini-note">${esc(rankLabel)}</span>`;
+
+    const BAR_STATS = {
+      tank:    [['blocked', 'Blocked'], ['damage', 'Damage'], ['deaths', 'Deaths']],
+      dps:     [['kills', 'Kills'], ['damage', 'Damage'], ['deaths', 'Deaths']],
+      support: [['healing', 'Healing'], ['assists', 'Assists'], ['deaths', 'Deaths']]
+    };
+    const per10 = 10 / minutes;
+
+    const cards = $('cards');
+    cards.innerHTML = '';
+    ordered.forEach((p, i) => {
+      const c = document.createElement('div');
+      c.className = `card ${p.role}${p === mvp ? ' is-mvp' : ''}`;
+      c.dataset.playerIndex = players.indexOf(p) + 1;
+      c.style.setProperty('--d', (START + i * STEP).toFixed(2) + 's');
+      const roleLabel = p.role === 'dps' ? 'DPS' : p.role[0].toUpperCase() + p.role.slice(1);
+      const bars = BAR_STATS[p.role].map(([stat, label]) => {
+        // the track runs from 0 to twice the role average, so the middle tick is "average"
+        const w = clamp((p[stat] * per10) / (ROLE_AVG[p.role][stat] * 2), 0.02, 1) * 100;
+        return `<div class="bar-row"><span>${label}</span><div class="track"><div class="fill ${stat === 'deaths' ? 'deaths' : ''}" style="--w:${w.toFixed(1)}%"></div></div><b>${fmt(p[stat])}</b></div>`;
+      }).join('');
+      const why = p.breakdown.map(b => `<div class="why-row"><span>${b.label}</span><span>${fmt(b.rate)}/10m vs ${fmt(b.average)}</span><b>&times;${b.weight}%</b><span class="why-pts">${b.points.toFixed(1)}</span></div>`).join('');
+      c.innerHTML = `
+        <div class="grade-cell">
+          <div class="stamp-grade ${gradeClass(p.grade)}">${p.grade}</div>
+          <div class="score-num">${p.score}/100</div>
+        </div>
+        <div class="who">
+          <div class="pname">${p === mvp ? '<span aria-hidden="true">👑 </span>' : ''}<span class="pname-real">${esc(p.name)}</span><span class="pname-mask">Player ${players.indexOf(p) + 1}</span><span class="badge">${roleLabel}</span></div>
+          <div class="hero">${esc(p.hero)}</div>
+          <div class="roast">${esc(p.line)}</div>
+          <details class="why"><summary>Why this grade?</summary><div class="why-grid">${why}<div class="why-note">Points = weight &times; curve. An exactly average game is 70 (B-).</div></div></details>
+        </div>
+        <div class="bars">
+          <div class="kda">K/D/A <b>${p.kills} / ${p.deaths} / ${p.assists}</b></div>
+          ${bars}
+        </div>`;
+      cards.appendChild(c);
+    });
+    $('resultsTools').hidden = !(window.rivals && window.rivals.captureImage);
+    $('toolStatus').textContent = '';
+
+    $('results').style.display = 'block';
+    $('results').classList.remove('stale');
+    $('resultsTitle').focus({ preventScroll: true });
+    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------- Fill / sample / clear ----------
+  function fillRows(list) {
+    const rows = rowsEl.querySelectorAll('.player-row');
+    rows.forEach((row, i) => {
+      const p = list[i] || {};
+      for (const f of FIELDS) {
+        const el = field(row, f);
+        el.value = p[f] !== undefined && p[f] !== null ? p[f] : '';
+        el.classList.toggle('check', !!(p.warnings && p.warnings.includes(f)));
+      }
+    });
+  }
+
+  const SAMPLE = [
+    { name: 'Apple', hero: 'Magneto', role: 'tank', kills: 9, deaths: 3, assists: 5, damage: 11200, blocked: 28500, healing: 0 },
+    { name: 'Coco', hero: 'Psylocke', role: 'dps', kills: 27, deaths: 6, assists: 3, damage: 19800, blocked: 1200, healing: 0 },
+    { name: 'Sho', hero: 'Star-Lord', role: 'dps', kills: 11, deaths: 13, assists: 4, damage: 9400, blocked: 0, healing: 0 },
+    { name: 'Yumeko', hero: 'Luna Snow', role: 'support', kills: 6, deaths: 4, assists: 22, damage: 4200, blocked: 900, healing: 17500 },
+    { name: 'Kevin', hero: 'Mantis', role: 'support', kills: 3, deaths: 8, assists: 9, damage: 2100, blocked: 0, healing: 2600 },
+    { name: 'Ricky', hero: 'Groot', role: 'tank', kills: 5, deaths: 9, assists: 6, damage: 6800, blocked: 14500, healing: 0 }
+  ];
+  function hasNames() {
+    return [...rowsEl.querySelectorAll('[data-f="name"]')].some(el => el.value.trim());
+  }
+  function clearAll() {
+    if (hasNames() && !confirm('Clear all players? This cannot be undone.')) return;
+    fillRows([]);
+    $('minutes').value = '10';
+    $('results').style.display = 'none';
+    $('results').classList.remove('stale');
+    $('error').textContent = '';
+    $('preview').removeAttribute('src');
+    $('preview').style.display = 'none';
+  }
+
+  // ---------- Share results as an image (desktop app) ----------
+  async function shareImage(mode) {
+    if (!window.rivals || !window.rivals.captureImage) return;
+    const res = $('results'), st = $('toolStatus');
+    if (res.classList.contains('stale')) {
+      st.className = 'tool-status err';
+      st.textContent = 'Grade the team again before sharing.';
+      return;
+    }
+    st.className = 'tool-status'; st.textContent = mode === 'copy' ? 'Copying…' : '';
+    await document.fonts.ready;
+    const hideNames = $('hideNames').checked;
+    const restoreRoasts = [];
+    if (hideNames) {
+      for (const card of res.querySelectorAll('.card')) {
+        const real = card.querySelector('.pname-real')?.textContent || '';
+        const roast = card.querySelector('.roast');
+        if (real && roast) {
+          restoreRoasts.push([roast, roast.textContent]);
+          roast.textContent = roast.textContent.split(real).join('Player ' + (card.dataset.playerIndex || ''));
+        }
+      }
+    }
+    res.classList.add('capturing');
+    res.classList.toggle('hide-names', hideNames);
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const b = res.getBoundingClientRect();
+    let out;
+    try {
+      out = await window.rivals.captureImage({ x: b.left + window.scrollX, y: b.top + window.scrollY, width: b.width, height: b.height }, mode);
+    } catch (e) {
+      out = { error: "Couldn't make the image." };
+    } finally {
+      res.classList.remove('capturing');
+      res.classList.remove('hide-names');
+      for (const [el, text] of restoreRoasts) el.textContent = text;
+    }
+    if (out && out.canceled) { st.textContent = ''; return; }
+    st.className = 'tool-status ' + (out && out.ok ? 'ok' : 'err');
+    st.textContent = out && out.ok ? (mode === 'copy' ? 'Copied. Paste it anywhere with Ctrl+V.' : 'Image saved.') : ((out && out.error) || "Couldn't make the image.");
+  }
+  $('copyImgBtn').addEventListener('click', () => shareImage('copy'));
+  $('saveImgBtn').addEventListener('click', () => shareImage('save'));
+
+  $('gradeBtn').addEventListener('click', grade);
+  $('sampleBtn').addEventListener('click', () => { fillRows(SAMPLE); $('minutes').value = '10'; markDirty(); });
+  $('clearBtn').addEventListener('click', clearAll);
+  if (window.rivals && window.rivals.getVersion) window.rivals.getVersion().then(v => { if (v) $('appVersion').textContent = v; }).catch(() => {});
+
+  // ---------- Screenshot import ----------
+  const drop = $('drop'), status = $('importStatus'), preview = $('preview');
+  const setStatus = (html, cls = '') => { status.className = 'drop-status ' + cls; status.innerHTML = html; };
+  let importing = false;
+
+  async function importImage(blob) {
+    if (!window.rivals || !window.rivals.importScreenshot) {
+      setStatus('Screenshot import only works in the desktop app version.', 'err');
+      return;
+    }
+    if (importing) return;
+    if (hasNames() && !confirm('Replace the current squad with this screenshot?')) return;
+    importing = true;
+    drop.classList.add('busy');
+    let previewUrl = null;
+    try {
+      try {
+        if (preview.src) URL.revokeObjectURL(preview.src);
+        previewUrl = URL.createObjectURL(blob);
+        preview.src = previewUrl; preview.style.display = 'block';
+      } catch (e) {}
+      setStatus('<span class="spinner"></span>Loading screenshot…');
+      const bmp = await createImageBitmap(blob);
+      const canvas = document.createElement('canvas');
+      canvas.width = bmp.width; canvas.height = bmp.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(bmp, 0, 0);
+      const data = ctx.getImageData(0, 0, bmp.width, bmp.height);
+
+      const stop = window.rivals.onProgress(({ i, n }) => setStatus(`<span class="spinner"></span>Reading player ${i} of ${n}…`));
+      setStatus('<span class="spinner"></span>Reading scoreboard…');
+      let res;
+      try { res = await window.rivals.importScreenshot({ width: data.width, height: data.height, data: data.data.buffer }); }
+      finally { stop(); }
+
+      if (!res || res.error) { setStatus(esc((res && res.error) || 'Something went wrong reading that image.'), 'err'); return; }
+
+      const players = res.players.map(p => {
+        const known = matchKnown(p.name);
+        if (known) {
+          if (known.name !== p.name) p.warnings = p.warnings.filter(w => w !== 'name');
+          p.name = known.name;
+          p.hero = known.hero || '';
+          if (known.role && p.warnings.includes('role')) { p.role = known.role; p.warnings = p.warnings.filter(w => w !== 'role'); }
+        } else {
+          p.hero = '';
+        }
+        return p;
+      });
+      fillRows(players);
+      if (res.minutes) $('minutes').value = res.minutes;
+      $('results').style.display = 'none';
+      $('results').classList.remove('stale');
+
+      const flagged = players.reduce((n, p) => n + p.warnings.length, 0);
+      let msg = `Got ${players.length} player${players.length === 1 ? '' : 's'}${res.minutes ? ` and a ${res.minutes}-minute match` : ''}. `;
+      msg += flagged ? `Double-check the ${flagged} yellow box${flagged === 1 ? '' : 'es'}, add heroes, then hit Grade Team.` : 'Add heroes if you like, then hit Grade Team.';
+      if (!res.minutes) msg += ' Match length was not detected, so check it before grading.';
+      if (res.small) msg += ' This screenshot is pretty small, so give the numbers a quick look.';
+      setStatus(esc(msg), flagged || res.small || !res.minutes ? 'warn' : 'ok');
+    } catch (e) {
+      setStatus("Couldn't open that image. Try a PNG or JPG screenshot.", 'err');
+    } finally {
+      importing = false;
+      drop.classList.remove('busy');
+    }
+  }
+
+  document.addEventListener('paste', e => {
+    const items = e.clipboardData ? [...e.clipboardData.items] : [];
+    const img = items.find(it => it.kind === 'file' && it.type.startsWith('image/'));
+    if (img) { e.preventDefault(); importImage(img.getAsFile()); }
+  });
+  ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'dragend'].forEach(ev => document.addEventListener(ev, e => { if (!e.relatedTarget) drop.classList.remove('over'); }));
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    const file = [...(e.dataTransfer?.files || [])].find(f => f.type.startsWith('image/'));
+    if (file) importImage(file);
+    else if (e.dataTransfer?.files?.length) setStatus('That file isn\'t an image. Drop a PNG or JPG screenshot.', 'err');
+  });
+  $('browseBtn').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) importImage(f); e.target.value = ''; });
+  const pasteBtn = $('pasteBtn');
+  if (window.rivals && window.rivals.readClipboardImage) {
+    pasteBtn.hidden = false;
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const res = await window.rivals.readClipboardImage();
+        if (!res || res.error) { setStatus(esc((res && res.error) || 'The clipboard does not contain an image.'), 'err'); return; }
+        await importImage(new Blob([res.data], { type: res.type || 'image/png' }));
+      } catch (e) {
+        setStatus('Could not read an image from the clipboard.', 'err');
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
